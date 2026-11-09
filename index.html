@@ -97,6 +97,7 @@ footer{text-align:center;color:#6f879e;font-size:10px;padding:35px 10px}
   <div class="field"><label>موضوع</label><input id="aCategory" placeholder="مثلاً علوم"></div><div class="field"><label>متن سؤال</label><input id="aQuestion" placeholder="متن سؤال"></div>
   <div class="grid2"><div class="field"><label>گزینه ۱</label><input id="a0"></div><div class="field"><label>گزینه ۲</label><input id="a1"></div><div class="field"><label>گزینه ۳</label><input id="a2"></div><div class="field"><label>گزینه ۴</label><input id="a3"></div></div>
   <div class="grid2"><div class="field"><label>گزینه صحیح</label><select id="aCorrect"><option value="0">گزینه ۱</option><option value="1">گزینه ۲</option><option value="2">گزینه ۳</option><option value="3">گزینه ۴</option></select></div><div class="field"><label>سطح دشواری</label><select id="aDifficulty"><option value="1">آسان</option><option value="2">متوسط</option><option value="3">سخت</option><option value="4">فوق‌سخت</option></select></div></div><button class="btn primary" onclick="addQuestion()">ثبت سؤال</button><div id="adminQuestions" class="adminList" style="margin-top:18px"></div>
+  <div class="grid2" style="margin-top:18px"><div><h3>مدیریت کاربران</h3><div id="adminUsers" class="adminList"></div></div><div><h3>تاریخچه بازی‌ها</h3><div id="adminGames" class="adminList"></div></div></div>
  </div>
 </section>
 <footer>🎣 ایونت ماهیگیر · ۲۰ سؤال، یک رقابت، یک قهرمان</footer>
@@ -193,6 +194,8 @@ async function loadLeaderboard(){
  if(!rows.length)$("leaderRows").innerHTML='<tr><td colspan="4" class="muted">هنوز امتیازی ثبت نشده است؛ اولین قهرمان تو باش!</td></tr>';
  rows.forEach(p=>{const tr=document.createElement("tr");if(session&&p.user_id===session.user.id)tr.className="me";tr.innerHTML='<td>'+Number(p.rank).toLocaleString("fa-IR")+'</td><td>'+esc(p.display_name)+'</td><td>'+Number(p.total_score).toLocaleString("fa-IR")+'</td><td>'+Number(p.games_played).toLocaleString("fa-IR")+'</td>';$("leaderRows").appendChild(tr)});
  $("topScore").textContent=rows[0]?Number(rows[0].total_score).toLocaleString("fa-IR"):"۰";
+ const mine=session?rows.find(p=>p.user_id===session.user.id):null;
+ if($("profileRank"))$("profileRank").textContent=mine?"رتبه "+Number(mine.rank).toLocaleString("fa-IR"):"شرکت‌کننده";
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function loadStats(){
@@ -205,7 +208,11 @@ async function loadAdmin(){
  const {data,error}=await sb.rpc("event_admin_stats");if(error){$("adminStats").textContent=error.message;return}
  $("adminStats").textContent="شرکت‌کنندگان: "+data.participants+" · بازی‌ها: "+data.games+" · سؤال‌ها: "+data.questions+" · مجموع امتیاز: "+data.total_score;
  const {data:qs,error:e}=await sb.rpc("event_admin_questions");if(e){$("adminQuestions").textContent=e.message;return}
- $("adminQuestions").innerHTML=qs.map(q=>'<div class="qrow"><span>#'+q.id+' · '+esc(q.question)+' · '+difficulty(q.difficulty)+'</span><button class="btn danger" onclick="deleteQuestion('+q.id+')">حذف</button></div>').join("");
+ $("adminQuestions").innerHTML=qs.map(q=>'<div class="qrow"><span>#'+q.id+' · '+esc(q.question)+' · '+difficulty(q.difficulty)+'</span><span><button class="btn" onclick="editQuestion('+q.id+')">ویرایش</button> <button class="btn danger" onclick="deleteQuestion('+q.id+')">حذف</button></span></div>').join("");
+ const {data:users,error:ue}=await sb.rpc("event_admin_users");
+ $("adminUsers").innerHTML=ue?esc(ue.message):(users||[]).map(u=>'<div class="qrow"><span><b>'+esc(u.display_name)+'</b> · @'+esc(u.username)+'<br>امتیاز '+u.total_score+' · بازی '+u.games_played+' · توکن '+u.tokens+'</span><button class="btn" onclick="adjustTokens(\''+u.id+'\')">تنظیم توکن</button></div>').join("")||'<p class="muted">هنوز کاربری ثبت‌نام نکرده است.</p>';
+ const {data:games,error:ge}=await sb.rpc("event_admin_games");
+ $("adminGames").innerHTML=ge?esc(ge.message):(games||[]).map(g=>'<div class="qrow"><span>'+esc(g.display_name)+' · '+esc(g.status)+'<br>'+g.correct_count+' پاسخ صحیح · '+g.final_score+' امتیاز</span><small>'+esc(g.event_day)+'</small></div>').join("")||'<p class="muted">هنوز بازی ثبت نشده است.</p>';
 }
 async function addQuestion(){
  const opts=[0,1,2,3].map(i=>$("a"+i).value.trim()),q=$("aQuestion").value.trim(),cat=$("aCategory").value.trim();
@@ -214,6 +221,21 @@ async function addQuestion(){
  if(error){err(error);return}toast("سؤال اضافه شد.");loadAdmin();
 }
 async function deleteQuestion(id){if(!confirm("این سؤال حذف شود؟"))return;const {error}=await sb.rpc("event_admin_delete_question",{p_id:id});if(error){err(error);return}loadAdmin()}
+async function editQuestion(id){
+ const {data:all,error}=await sb.rpc("event_admin_questions");if(error){err(error);return}
+ const q=all.find(x=>x.id===id);if(!q)return;
+ const category=prompt("موضوع سؤال",q.category);if(category===null)return;
+ const question=prompt("متن سؤال",q.question);if(question===null)return;
+ const options=q.options.map((v,i)=>prompt("گزینه "+(i+1),v));if(options.some(v=>v===null))return;
+ const correct=prompt("شماره گزینه صحیح (۱ تا ۴)",String(q.correct_option+1));if(correct===null)return;
+ const {error:e}=await sb.rpc("event_admin_update_question",{p_id:id,p_category:category,p_difficulty:q.difficulty,p_question:question,p_options:options,p_correct:Number(correct)-1});
+ if(e){err(e);return}toast("سؤال ویرایش شد.");loadAdmin();
+}
+async function adjustTokens(id){
+ const amount=prompt("مقدار تغییر توکن را وارد کن؛ برای کم‌کردن عدد منفی بنویس.","100");if(amount===null)return;
+ const n=Number(amount);if(!Number.isInteger(n)||n===0){toast("مقدار معتبر نیست.");return}
+ const {data,error}=await sb.rpc("event_admin_adjust_tokens",{p_user_id:id,p_amount:n});if(error){err(error);return}toast("اعتبار جدید: "+data+" توکن");loadAdmin();
+}
 function countdown(){
  const d=END-Date.now();if(d<=0){["dd","hh","mm","ss"].forEach(id=>$(id).textContent="۰۰");return}
  const vals=[Math.floor(d/86400000),Math.floor(d/3600000)%24,Math.floor(d/60000)%60,Math.floor(d/1000)%60];["dd","hh","mm","ss"].forEach((id,i)=>$(id).textContent=String(vals[i]).padStart(2,"0").replace(/\d/g,x=>"۰۱۲۳۴۵۶۷۸۹"[x]));
