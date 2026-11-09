@@ -134,7 +134,7 @@ async function submitAuth(){
  }catch(e){err(e)}finally{$("authSubmit").disabled=false}
 }
 async function loadProfile(){
- if(!session){$("authBox").classList.remove("hidden");$("profileBox").classList.add("hidden");$("navAuth").textContent="ورود";$("adminSection").classList.add("hidden");return}
+ if(!session){$("authBox").classList.remove("hidden");$("profileBox").classList.add("hidden");$("navAuth").textContent="ورود";$("adminSection").classList.add("hidden");$("adminClaim").classList.add("hidden");return}
  const {data,error}=await sb.from("event_profiles").select("*").eq("id",session.user.id).single();if(error){err(error);return}
  profile=data;$("authBox").classList.add("hidden");$("profileBox").classList.remove("hidden");$("navAuth").textContent="حساب من";
  $("profileName").textContent=profile.display_name;$("profileUser").textContent="@"+profile.username;$("avatar").textContent=profile.avatar;
@@ -199,10 +199,11 @@ async function loadLeaderboard(){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function loadStats(){
- const [{count:participants},{count:games}]=await Promise.all([
-  sb.from("event_profiles").select("*",{count:"exact",head:true}),
-  sb.from("event_games").select("*",{count:"exact",head:true})
- ]);$("participants").textContent=Number(participants||0).toLocaleString("fa-IR");$("gamesCount").textContent=Number(games||0).toLocaleString("fa-IR");
+ const {data,error}=await sb.rpc("event_public_stats");
+ if(error){$("participants").textContent="—";$("gamesCount").textContent="—";return}
+ $("participants").textContent=Number(data.participants||0).toLocaleString("fa-IR");
+ $("gamesCount").textContent=Number(data.games||0).toLocaleString("fa-IR");
+ $("topScore").textContent=Number(data.top_score||0).toLocaleString("fa-IR");
 }
 async function loadAdmin(){
  const {data,error}=await sb.rpc("event_admin_stats");if(error){$("adminStats").textContent=error.message;return}
