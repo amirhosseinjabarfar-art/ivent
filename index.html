@@ -120,9 +120,11 @@ async function submitAuth(){
  $("authSubmit").disabled=true;
  try{
   if(mode==="signup"){
-   const {data,error}=await sb.auth.signUp({email:emailFor(u),password:p,options:{data:{username:u,display_name:d}}});
-   if(error)throw error;
-   if(!data.session){toast("حساب ساخته شد؛ اگر تأیید ایمیل فعال باشد، تنظیمات ورود پروژه نیاز به تأیید مدیر دارد.");return}
+   const {data,error}=await sb.functions.invoke("event-signup",{body:{username:u,password:p,display_name:d}});
+   if(error){let message=error.message;try{const body=await error.context.json();message=body.error||message}catch{}throw new Error(message)}
+   if(data?.error)throw new Error(data.error);
+   const {error:loginError}=await sb.auth.signInWithPassword({email:emailFor(u),password:p});
+   if(loginError)throw loginError;
    toast("حساب ساخته شد؛ خوش آمدی!");
   }else{
    const {error}=await sb.auth.signInWithPassword({email:emailFor(u),password:p});if(error)throw error;toast("با موفقیت وارد شدی.");
