@@ -66,6 +66,7 @@ footer{text-align:center;color:#6f879e;font-size:10px;padding:35px 10px}
   <div class="card"><div class="profileHead"><div class="avatar" id="avatar">🎣</div><div><div class="profileName" id="profileName">—</div><span class="pill" id="profileRank">شرکت‌کننده</span></div></div><p class="muted" id="profileUser"></p><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="claimTokens()">دریافت ۱۰۰ توکن روزانه</button><button class="btn danger" onclick="logout()">خروج از حساب</button></div><p class="muted" id="tokenLine"></p></div>
   <div class="card"><h3>عملکرد من</h3><div class="miniStats"><div class="mini"><b id="myScore">0</b><span>امتیاز کل</span></div><div class="mini"><b id="myGames">0</b><span>بازی‌ها</span></div><div class="mini"><b id="myCorrect">0</b><span>پاسخ صحیح</span></div><div class="mini"><b id="myBest">0</b><span>بهترین رکورد</span></div></div></div>
  </div>
+ <div id="adminClaim" class="card hidden" style="margin-top:12px"><h3>راه‌اندازی مدیر اصلی</h3><p class="muted">این کد یک‌بار مصرف است و فقط برای نخستین مدیر پروژه استفاده می‌شود.</p><div class="field"><label>کد راه‌اندازی محرمانه</label><input id="adminCode" type="password" autocomplete="off"></div><button class="btn gold" onclick="claimAdmin()">فعال‌سازی پنل مدیریت</button></div>
 </section>
 <section id="gameSection" class="hidden">
  <div class="sectionTitle"><div><h2>چالش اطلاعات عمومی</h2><p>۲۰ سؤال؛ هر پاسخ صحیح ۱۰ امتیاز</p></div></div>
@@ -139,9 +140,10 @@ async function loadProfile(){
  $("tokenLine").textContent="اعتبار فعلی: "+profile.tokens+" توکن";
  $("myScore").textContent=profile.total_score;$("myGames").textContent=profile.games_played;$("myCorrect").textContent=profile.correct_answers;$("myBest").textContent=profile.best_score;
  const {data:admin}=await sb.from("event_admins").select("user_id").eq("user_id",session.user.id).maybeSingle();
- if(admin){$("adminSection").classList.remove("hidden");loadAdmin()}
- else $("adminSection").classList.add("hidden");
+ if(admin){$("adminSection").classList.remove("hidden");$("adminClaim").classList.add("hidden");loadAdmin()}
+ else{$("adminSection").classList.add("hidden");$("adminClaim").classList.remove("hidden")}
 }
+async function claimAdmin(){const code=$("adminCode").value.trim();if(!code){toast("کد راه‌اندازی را وارد کن.");return}const {error}=await sb.rpc("event_claim_admin",{p_code:code});if(error){err(error);return}$("adminCode").value="";toast("دسترسی مدیر اصلی فعال شد.");await loadProfile()}
 async function claimTokens(){const {data,error}=await sb.rpc("event_claim_daily_tokens");if(error){err(error);return}profile.tokens=data;$("tokenLine").textContent="اعتبار فعلی: "+data+" توکن";toast("۱۰۰ توکن روزانه به حسابت اضافه شد.");}
 async function logout(){await sb.auth.signOut();game=null;questions=[];$("gameSection").classList.add("hidden");toast("از حساب خارج شدی.")}
 function difficulty(n){return ["","آسان","متوسط","سخت","فوق‌سخت"][n]||"متوسط"}
