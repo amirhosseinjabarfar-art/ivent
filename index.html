@@ -249,7 +249,7 @@ async function boot(){
   if(!error&&data){game=data.game_id;questions=data.questions;score=data.score;qIndex=data.current_position-1;$("gameSection").classList.remove("hidden");$("gameScore").textContent=score;$("gameTokens").textContent=profile?.tokens??"—";renderQuestion();toast("بازی ناتمام قبلی بازیابی شد.")}
  }
  sb.auth.onAuthStateChange(async(_event,s)=>{session=s;await loadProfile();await loadStats();await loadLeaderboard()});
- channel=sb.channel("event-live").on("postgres_changes",{event:"*",schema:"public",table:"event_profiles"},()=>{loadStats();loadLeaderboard();if(session)loadProfile()}).subscribe();
+ channel=sb.channel("event-live").on("postgres_changes",{event:"INSERT",schema:"public",table:"event_live_updates"},()=>{loadStats();loadLeaderboard();if(session)loadProfile()}).subscribe();
 }
 countdown();setInterval(countdown,1000);boot();
 </script>
